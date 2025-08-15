@@ -1,7 +1,9 @@
-#include "Cpu0_Main.h"
+#include "Cpu0_Init.h"
+#include "ccu.h"
 
 void core0_main (void)
 {
-    System_Init();
+    if (!core0_init())
+        return;
     run_ccu();
 }

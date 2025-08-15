@@ -1,101 +1,45 @@
-#include <Ifx_reg.h>
-#include <Ifx_Types.h>
-#include <IfxGpt12.h>
-#include <IfxPort.h>
+#include "motor.h"
 
-#include "Motor.h"
-#include "Bsp.h"
-#include "isr_priority.h"
+#include "gpio.h"
 #include "gtm_atom_pwm.h"
 
 void Motor_Init (void)
 {
-    MODULE_P10.IOCR0.B.PC1 = 0x10;  // PWM A DIR
-    MODULE_P02.IOCR4.B.PC7 = 0x10;  // PWM A Break
+    /* Initialize */
+    GtmAtomPwm_Init(); // Init GTM for PWM generation
+    GPIO_InitMotor(); // Set dir, break pin as output
 
-    MODULE_P10.IOCR0.B.PC2 = 0x10;  // PWM B DIR
-    MODULE_P02.IOCR4.B.PC6 = 0x10;  // PWM B Break
+    /* Set initial state */
+    GtmAtomPwmA_SetDutyCycle(0); // Set duty 0
+    GtmAtomPwmB_SetDutyCycle(0); // Set duty 0
 
-    // Init GTM for PWM generation
-    GtmAtomPwm_Init();
+    GPIO_SetMotorChADir(true); // Set to forward
+    GPIO_SetMotorChBDir(true); // Set to forward
 
-    // Set duty 0
-    GtmAtomPwmA_SetDutyCycle(0);
-    GtmAtomPwmB_SetDutyCycle(0);
+    GPIO_SetMotorChABrake(true); // Activate the brakes
+    GPIO_SetMotorChBBrake(true); // Activate the brakes
 }
 
-///* 1: 정방향, 2: 역방향 */
-void Motor_movChA (int dir)
+void Motor_movChA_PWM (uint32_t duty, bool dir)
 {
-    if (dir)
-    {
-        MODULE_P10.OUT.B.P1 = 1; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-    else
-    {
-        MODULE_P10.OUT.B.P1 = 0; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-    MODULE_P02.OUT.B.P7 = 0; /* 모터 Brake 해제 (1: 정지, 0: PWM-A에 따라 동작) */
-    GtmAtomPwm_SetDutyCycle(1000); /* 100% PWM duty  */
+    GtmAtomPwmA_SetDutyCycle(duty * 10); // Max input == 100 * 10 (100% PWM duty)
+    GPIO_SetMotorChADir(dir); // true(1): 정방향, false(0): 역방향
+    GPIO_SetMotorChABrake(false); // 모터 Brake 해제 (true: 정지, false: PWM-A에 따라 동작)
 }
 
 void Motor_stopChA (void)
 {
-    MODULE_P02.OUT.B.P7 = 1; /* 모터 Brake 신호 인가 (1: 정지, 0: PWM-A에 따라 동작) */
+    GPIO_SetMotorChABrake(true); // 모터 Brake 활성화
 }
 
-///* 1: 정방향, 0: 역방향 */
-void Motor_movChA_PWM (int duty, int dir)
+void Motor_movChB_PWM (uint32_t duty, bool dir)
 {
-//    GtmAtomPwm_SetDutyCycle(duty);
-    GtmAtomPwmA_SetDutyCycle(duty * 10);
-    if (dir)
-    {
-        MODULE_P10.OUT.B.P1 = 1; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-    else
-    {
-        MODULE_P10.OUT.B.P1 = 0; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-
-    MODULE_P02.OUT.B.P7 = 0; /* 모터 Brake 해제 (1: 정지, 0: PWM-A에 따라 동작) */
-}
-
-///* 1: 정방향, 2: 역방향 */
-void Motor_movChB (int dir)
-{
-    if (dir)
-    {
-        MODULE_P10.OUT.B.P2 = 1; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-    else
-    {
-        MODULE_P10.OUT.B.P2 = 0; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-    MODULE_P02.OUT.B.P6 = 0; /* 모터 Brake 해제 (1: 정지, 0: PWM-A에 따라 동작) */
-    GtmAtomPwm_SetDutyCycle(1000); /* 100% PWM duty  */
+    GtmAtomPwmB_SetDutyCycle(duty * 10);
+    GPIO_SetMotorChBDir(dir);
+    GPIO_SetMotorChBBrake(false);
 }
 
 void Motor_stopChB (void)
 {
-    MODULE_P02.OUT.B.P6 = 1; /* 모터 Brake 신호 인가 (1: 정지, 0: PWM-A에 따라 동작) */
+    GPIO_SetMotorChBBrake(true);
 }
-
-///* 1: 정방향, 0: 역방향 */
-void Motor_movChB_PWM (int duty, int dir)
-{
-//    GtmAtomPwm_SetDutyCycle(duty);
-    GtmAtomPwmB_SetDutyCycle(duty * 10);
-
-    if (dir)
-    {
-        MODULE_P10.OUT.B.P2 = 1; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-    else
-    {
-        MODULE_P10.OUT.B.P2 = 0; /* 모터 회전 방향 (1: 앞, 0: 뒤) */
-    }
-
-    MODULE_P02.OUT.B.P6 = 0; /* 모터 Brake 해제 (1: 정지, 0: PWM-A에 따라 동작) */
-}
-

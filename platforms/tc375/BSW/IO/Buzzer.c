@@ -1,16 +1,24 @@
-#include "Buzzer.h"
+#include "buzzer.h"
+
+#include "gpio.h"
+#include "gpt12.h"
 
 void Buzzer_Init (void)
 {
+    /* Initialize */
+    GPIO_InitBuzzer();
+    Gpt2_Init();
+
+    /* Set initial state */
+    GPIO_SetBuzzer(false);
     Stop_Gpt12_T6();
-    GPIO_SetBuzzer(0);
 }
 
 void Buzzer_Buzz (void)
 {
-    static volatile unsigned int cntDelay = 0;
-    cntDelay++;
-    if (cntDelay % 500 == 0)
+    static int cntDelay = 0;
+    cntDelay = (cntDelay + 1) % 500;
+    if (cntDelay == 1)
     {
         GPIO_ToggleBuzzer();
     }

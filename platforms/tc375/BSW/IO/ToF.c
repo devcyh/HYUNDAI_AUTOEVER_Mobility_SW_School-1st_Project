@@ -1,14 +1,31 @@
-#include "ToF.h"
+#include "tof.h"
+
+#include "asclin.h"
+#include "stm.h"
+
+#include "byte_queue.h"
+
+#define TOF_FRAME_LENGTH 16
+#define TOF_FRAME_HEADER 0x57
 
 static ByteQueue rx_queue;
-static uint64 sync_start_time_us[TOF_BUFFER_SIZE];
+static uint64_t sync_start_time_us[BYTE_QUEUE_MAX_BUF_SIZE];
+static int max_bytes_per_call = TOF_FRAME_LENGTH * 2; // 기본값
 
 static ToFData_t latest_data;
 static bool data_ready = false;
 
-void ToF_Init (void)
+bool ToF_Init (int buffer_size, int max_bytes)
 {
-    ByteQueue_Init(&rx_queue, TOF_BUFFER_SIZE);
+    /* Initialize */
+    if (!ByteQueue_Init(&rx_queue, buffer_size))
+        return false;
+
+    max_bytes_per_call = max_bytes;
+
+    Asclin2_InitUart();
+
+    return true;
 }
 
 void ToF_RxHandler (uint8_t byte)
@@ -23,10 +40,10 @@ void ToF_RxHandler (uint8_t byte)
     }
 }
 
-static bool verifyCheckSum (const uint8_t *data, int32_t length)
+static bool verifyCheckSum (const uint8_t *data, int length)
 {
     uint8_t sum = 0;
-    for (int32_t i = 0; i < length - 1; ++i)
+    for (int i = 0; i < length - 1; ++i)
     {
         sum += data[i];
     }
@@ -58,15 +75,17 @@ static bool parseToFPacket (const uint8_t *packet, ToFData_t *out)
 void ToF_ProcessQueue (void)
 {
     static uint8_t packet[TOF_FRAME_LENGTH];
-    static uint8_t index = 0;
+    static int index = 0;
     static bool syncing = false;
 
-    static uint64 frame_start_time_us = 0;
+    static uint64_t frame_start_time_us = 0;
 
     uint8_t byte;
-    while (ByteQueue_Pop(&rx_queue, &byte))
+    int pop_cnt = 0;
+
+    while (pop_cnt < max_bytes_per_call && ByteQueue_Pop(&rx_queue, &byte))
     {
-        int head = (rx_queue.head - 1 + TOF_BUFFER_SIZE) % TOF_BUFFER_SIZE;
+        pop_cnt++;
 
         if (!syncing)
         {
@@ -74,6 +93,7 @@ void ToF_ProcessQueue (void)
             {
                 index = 0;
                 packet[index++] = byte;
+                int head = (rx_queue.head - 1 + rx_queue.capacity) % rx_queue.capacity;
                 frame_start_time_us = sync_start_time_us[head];
                 syncing = true;
             }
@@ -101,6 +121,6 @@ bool ToF_GetLatestData (ToFData_t *out)
         return false;
 
     *out = latest_data;
-    data_ready = false; // 읽으면 비움 (필요시 주석 처리)
+    data_ready = false;
     return true;
 }

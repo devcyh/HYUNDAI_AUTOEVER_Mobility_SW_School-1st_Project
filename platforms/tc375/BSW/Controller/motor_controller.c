@@ -1,40 +1,13 @@
 #include "motor_controller.h"
-#include "Motor.h"
+
+#include "motor.h"
 
 static int g_motorChA_Speed = 0;
 static int g_motorChB_Speed = 0;
 static int g_motorChA_Direction = 1;
 static int g_motorChB_Direction = 1;
 
-void MotorController_Init (void)
-{
-    g_motorChA_Speed = 0;
-    g_motorChB_Speed = 0;
-    g_motorChA_Direction = 1;
-    g_motorChB_Direction = 1;
-}
-
-/*-100 <= speed <= 100*/
-int MotorController_GetMotorChA(void)
-{
-    if (g_motorChA_Direction == 1){
-        return g_motorChA_Speed;
-    } else {
-        return -g_motorChA_Speed;
-    }
-}
-
-/*-100 <= speed <= 100*/
-int MotorController_GetMotorChB(void)
-{
-    if (g_motorChB_Direction == 1){
-        return g_motorChB_Speed;
-    } else {
-        return -g_motorChB_Speed;
-    }
-}
-
-static void MotorController_SetMotorChA(int speed)
+static void MotorController_SetMotorChA (int speed)
 {
     if (speed > 100)
         speed = 100;

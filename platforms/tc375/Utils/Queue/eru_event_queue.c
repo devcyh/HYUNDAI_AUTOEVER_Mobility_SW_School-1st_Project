@@ -1,8 +1,8 @@
-#include "byte_queue.h"
+#include "eru_event_queue.h"
 
-bool ByteQueue_Init (ByteQueue *q, int capacity)
+bool EruEventQueue_Init (EruEventQueue *q, int capacity)
 {
-    if (!q || capacity <= 0 || capacity > BYTE_QUEUE_MAX_BUF_SIZE)
+    if (!q || capacity <= 0 || capacity > ERU_EVENT_QUEUE_MAX_BUF_SIZE)
         return false;
 
     q->head = 0;
@@ -12,12 +12,12 @@ bool ByteQueue_Init (ByteQueue *q, int capacity)
     return true;
 }
 
-bool ByteQueue_Push (ByteQueue *q, uint8_t byte)
+bool EruEventQueue_Push (EruEventQueue *q, const EruEvent *event)
 {
     if (q->capacity <= 0)
         return false;
 
-    q->buffer[q->tail] = byte;
+    q->buffer[q->tail] = *event;
     q->tail = (q->tail + 1) % q->capacity;
 
     if (q->tail == q->head) // 큐가 가득 찬 경우
@@ -28,12 +28,12 @@ bool ByteQueue_Push (ByteQueue *q, uint8_t byte)
     return true;
 }
 
-bool ByteQueue_Pop (ByteQueue *q, uint8_t *byte)
+bool EruEventQueue_Pop (EruEventQueue *q, EruEvent *out)
 {
     if (q->capacity <= 0 || q->head == q->tail) // 큐가 비어있는지 확인
         return false;
 
-    *byte = q->buffer[q->head];
+    *out = q->buffer[q->head];
     q->head = (q->head + 1) % q->capacity;
 
     return true;

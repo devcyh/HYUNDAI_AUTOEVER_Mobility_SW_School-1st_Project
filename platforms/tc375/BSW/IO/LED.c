@@ -1,8 +1,15 @@
-#include "LED.h"
+#include "led.h"
+
+#include "gpio.h"
 
 void LED_Init (void)
 {
-    LED_Off();
+    /* Initialize */
+    GPIO_InitLed();
+
+    /* Set initial state */
+    GPIO_SetLed(1, false);
+    GPIO_SetLed(2, false);
 }
 
 void LED_Toggle (void)
@@ -13,12 +20,12 @@ void LED_Toggle (void)
 
 void LED_On (void)
 {
-    GPIO_SetLed(1, 1);
-    GPIO_SetLed(2, 1);
+    GPIO_SetLed(1, true);
+    GPIO_SetLed(2, true);
 }
 
 void LED_Off (void)
 {
-    GPIO_SetLed(1, 0);
-    GPIO_SetLed(2, 0);
+    GPIO_SetLed(1, false);
+    GPIO_SetLed(2, false);
 }

@@ -1,7 +1,7 @@
 #ifndef BSW_IO_LED_H_
 #define BSW_IO_LED_H_
 
-#include "GPIO.h"
+#include <stdbool.h>
 
 void LED_Init (void);
 void LED_Toggle (void);

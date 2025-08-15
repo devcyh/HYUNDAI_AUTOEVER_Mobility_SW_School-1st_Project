@@ -1,74 +1,48 @@
 #include "aps.h"
+
+#include "stm.h"
+
 #include "my_stdio.h"
-#include <stdbool.h> // bool 타입 사용
-#include "emer_light.h"
 
-// 후진 두 군데 38에서 35로 변경함
+#include "output_status.h"
 
-#define SENSOR_DATA_COUNT 4
-#define APS_WALL_THRESHOLD_CM 100
-#define MIN_PARKING_SPACE_CM 150 // 20cm
-#define APS_REAR_SAFETY_DISTANCE_CM 100 // 후진 시 최소 안전 거리
-#define APS_VEHICLE_SPEED_CM_PER_MS 0.5f
-#define APS_MAX_SPACE_SIZE_CM 1000
+typedef enum
+{
+    WALL_DETECTED, SPACE_DETECTED
+} APS_WallSpaceState_t;
 
-static uint64 sense_time[SENSOR_DATA_COUNT];
-static int sense_dist[SENSOR_DATA_COUNT]; // 0: ToF_front, 1: Ult_left, 2: Ult_right, 3: Ult_rear
+typedef enum
+{
+    PHASE_SPACE_DETECTION, PHASE_PARKING_EXECUTION, PHASE_COMPLETED
+} APS_ParkingPhase_t;
 
-static volatile int aps_state = 0;
-static int result_x;               // APS가 판단한 조향 명령 (0~99, 50: 중립)
-static int result_y;               // APS가 판단한 속도 명령 (0~99, 50: 정지)
-static int is_APS_done;            // APS 주차 완료 플래그 (0: 진행중, 1: 완료)
+#define SENSOR_DATA_COUNT               4
+#define APS_WALL_THRESHOLD_CM           100
+#define MIN_PARKING_SPACE_CM            150     // 20cm
+#define APS_REAR_SAFETY_DISTANCE_CM     100     // 후진 시 최소 안전 거리
+#define APS_VEHICLE_SPEED_CM_PER_MS     0.5f
+#define APS_MAX_SPACE_SIZE_CM           1000
+#define APS_VEHICLE_SPEED_CM_PER_MS     0.5f
+#define APS_MAX_SPACE_SIZE_CM           1000
+
+static uint64_t sense_time[SENSOR_DATA_COUNT];
+static int sense_dist[SENSOR_DATA_COUNT];   // 0: ToF_front, 1: Ult_left, 2: Ult_right, 3: Ult_rear
+
+static volatile bool aps_state = false;
+static int result_x;                        // APS가 판단한 조향 명령 (0~99, 50: 중립)
+static int result_y;                        // APS가 판단한 속도 명령 (0~99, 50: 정지)
+static int64_t result_emerAlert_cycle_ms;   // 경고 알림 주기
 
 static APS_ParkingPhase_t current_phase = PHASE_SPACE_DETECTION;
 static APS_WallSpaceState_t current_state = WALL_DETECTED;
 static int wall_reference_distance = 0;
 static bool wall_reference_initialized = false;
-static uint64 space_start_time = 0;
-static uint64 space_end_time = 0;
+static uint64_t space_start_time = 0;
+static uint64_t space_end_time = 0;
 static float measured_space_size = 0.0f;
 
 static int rotate_counter = 0;
-const int ROTATE_LIMIT = 30; // 실제 차량에 맞게 조정 필요 - 45가 원래 잘 돌아가던 코드였음
-
-static uint64 last_toggle_time = 0;
-
-void APS_Init (void)
-{
-    // APS 초기화 로직
-    // 센서 데이터 초기화
-    for (int i = 0; i < SENSOR_DATA_COUNT; i++)
-    {
-        sense_dist[i] = 0;
-        sense_time[i] = 0;
-    }
-
-    aps_state = 0;
-    result_x = 50; // 중립
-    result_y = 50; // 정지
-    is_APS_done = 0;
-
-    current_phase = PHASE_SPACE_DETECTION;
-    current_state = WALL_DETECTED;
-    wall_reference_distance = 0;
-    wall_reference_initialized = false;
-    space_start_time = 0;
-    space_end_time = 0;
-    measured_space_size = 0.0f;
-
-    rotate_counter = 0;
-}
-
-void APS_Restart (void)
-{
-    APS_Init();
-    Set_APS_State(1);
-}
-
-int Get_APS_State (void)
-{
-    return aps_state;
-}
+static const int ROTATE_LIMIT = 30;    // 실제 차량에 맞게 조정 필요 - 45가 원래 잘 돌아가던 코드였음
 
 // 공간 탐지 상태 분석
 static APS_WallSpaceState_t APS_AnalyzeSpace (int distance)
@@ -99,6 +73,18 @@ static APS_WallSpaceState_t APS_AnalyzeSpace (int distance)
     }
 }
 
+// 공간 크기 계산
+static float APS_CalculateSpaceSize (uint64_t start_time, uint64_t end_time)
+{
+    if (end_time < start_time)
+        return 0.0f;
+    uint64_t time_diff_us = end_time - start_time;
+    float time_diff_ms = time_diff_us / 1000.0f;
+    float space_size = time_diff_ms * APS_VEHICLE_SPEED_CM_PER_MS;
+    // if (space_size > APS_MAX_SPACE_SIZE_CM) return 0.0f;
+    return space_size;
+}
+
 // 공간 탐지 상태 전이 및 시간 기록
 static void APS_ProcessStateTransition (APS_WallSpaceState_t new_state)
 {
@@ -126,18 +112,6 @@ static void APS_ProcessStateTransition (APS_WallSpaceState_t new_state)
     }
 }
 
-// 공간 크기 계산
-float APS_CalculateSpaceSize (uint64 start_time, uint64 end_time)
-{
-    if (end_time < start_time)
-        return 0.0f;
-    uint64 time_diff_us = end_time - start_time;
-    float time_diff_ms = time_diff_us / 1000.0f;
-    float space_size = time_diff_ms * APS_VEHICLE_SPEED_CM_PER_MS;
-    // if (space_size > APS_MAX_SPACE_SIZE_CM) return 0.0f;
-    return space_size;
-}
-
 // 공간 탐지 및 주차 가능 판단
 static bool APS_DetectParkingSpace (void)
 {
@@ -154,45 +128,6 @@ static bool APS_DetectParkingSpace (void)
     return false;
 }
 
-/**
- * @brief 센서 데이터를 갱신하고, APS 명령을 계산하는 함수
- */
-int Update_APS_Result (ToFData_t *tof_latest_data, UltrasonicData_t ult_latest_data[], uint64 interval_us)
-{
-    sense_dist[0] = (int) (tof_latest_data->distance_m * 1000);
-    sense_time[0] = tof_latest_data->received_time_us;
-    for (int i = 0; i < ULTRASONIC_COUNT; i++)
-    {
-        sense_dist[i + 1] = ult_latest_data[i].distance_mm;
-        sense_time[i + 1] = ult_latest_data[i].received_time_us;
-    }
-    // 디버깅용으로 센서값 관련된 변수 모두 출력
-    // my_printf("[APS] ToF: %d mm, Ult_L: %d mm, Ult_R: %d mm, Ult_R: %d mm\n",
-    //           sense_dist[0], sense_dist[1], sense_dist[2], sense_dist[3]);
-
-    uint64 cur_time = getTimeUs();
-    // 디버깅용으로 현재 시간 출력
-    // my_printf("[APS] Current time: %llu us\n", cur_time);
-
-    for (int i = 1; i < SENSOR_DATA_COUNT; i++)
-    {
-        uint64 sensor_delay = cur_time - sense_time[i];
-        // 디버깅용으로 센서 지연 시간 출력, 상수인 interval_us값도 출력
-        // my_printf("[APS] Sensor %d delay: %llu us (Interval: %llu us)\n", i, sensor_delay, interval_us);
-        if (sensor_delay > interval_us)
-        {
-            // my_printf("[APS] Sensor %d data is too old, skipping...\n", i);
-            return 0;
-        }
-    }
-
-    // 수신한 센서 데이터 디버깅용으로 출력
-    my_printf("[APS] Sensor Data: ToF: %d mm, Ult_L: %d mm, Ult_R: %d mm, Ult_R: %d mm\n", sense_dist[0], sense_dist[1],
-            sense_dist[2], sense_dist[3]);
-    Calc_APS_Result();
-    return 1;
-}
-
 static int APS_Test_MapJoystickValue (int value)
 {
     if (value < 0)
@@ -202,15 +137,19 @@ static int APS_Test_MapJoystickValue (int value)
     
     return (value * 200 / 99) - 100;
 }
+
 /**
  * @brief APS가 판단한 조향/속도 명령을 계산하는 함수
  */
-int PHASE_PARKING_EXECUTION_STATE = 1;
+static int PHASE_PARKING_EXECUTION_STATE = 1;
 // static APS_WallSpaceState_t PHASE_PARKING_EXECUTION_NEW_STATE = WALL_DETECTED;
-void Calc_APS_Result (void)
+static void APS_Calc_Result (void)
 {
     int left_distance = sense_dist[1]; // 근데 어차피 안쓰고있음
     int rear_distance = sense_dist[3];
+
+    static uint64_t last_complete_time = 0;
+    uint64_t cur_time = 0;
 
     switch (current_phase)
     {
@@ -285,10 +224,19 @@ void Calc_APS_Result (void)
                     my_printf("[APS] Rotate completed, ready to reverse. Rear distance: %d\n", rear_distance);
                     // my_printf("[APS] After rotate, Steering: %d, Y: %d\n", result_x, result_y);
 
-                    /* 여기에 거리 기반 부저 기능 넣어야함 */
                     // read_distance 값에 따라 3단계로 부저 및 LED 달라짐
-                    Emer_Light_Blink_For_APS(rear_distance);
-
+                    if (rear_distance < 200)
+                    {
+                        result_emerAlert_cycle_ms = EMER_ALERT_FAST;
+                    }
+                    else if (rear_distance < 500)
+                    {
+                        result_emerAlert_cycle_ms = EMER_ALERT_SLOW;
+                    }
+                    else
+                    {
+                        result_emerAlert_cycle_ms = EMER_ALERT_OFF;
+                    }
                 }
 
                 // 후방 안전거리 도달 시 주차 완료 처리
@@ -296,23 +244,29 @@ void Calc_APS_Result (void)
                 {
                     result_x = 50;      // 중립
                     result_y = 50;      // 정지
+                    result_emerAlert_cycle_ms = EMER_ALERT_ON;
                     current_phase = PHASE_COMPLETED;
                     my_printf("[APS] Parking completed! Rear distance: %d\n", rear_distance);
+                    last_complete_time = getTimeMs();
                     return;
                 }
             }
             return;
 
         case PHASE_COMPLETED :
-
-            if (Emer_Light_APS_DONE())
+            cur_time = getTimeMs();
+            if (cur_time - last_complete_time >= 2000)
             {
                 my_printf("[APS] Parking completed and APS_DONE signal received.\n");
                 // APS 완료 상태로 전환
                 aps_state = 0; // APS off
-                is_APS_done = 1; // APS 완료 플래그 설정
                 result_x = 50; // 중립
                 result_y = 50; // 정지
+                result_emerAlert_cycle_ms = EMER_ALERT_OFF;
+            }
+            else
+            {
+                result_emerAlert_cycle_ms = EMER_ALERT_ON;
             }
             return;
 
@@ -321,54 +275,100 @@ void Calc_APS_Result (void)
             result_y = 50;
             return;
     }
-    my_printf("[APS] Phase: %d, X: %d, Y: %d, Done: %d\n", current_phase, result_x, result_y, is_APS_done);
+    my_printf("[APS] Phase: %d, X: %d, Y: %d, Done: %d\n", current_phase, result_x, result_y, !aps_state);
 }
 
-/**
- * @brief 센서 거리값을 기반으로 조향 명령(x값)을 계산하는 함수
- */
-int APS_CalculateSteeringFromSensor (int sensor_distance)
+void APS_Init (void)
 {
-    int base_steering = 30;
-    if (sensor_distance < 15)
+    for (int i = 0; i < SENSOR_DATA_COUNT; i++)
     {
-        base_steering = 70;
+        sense_dist[i] = 0;
+        sense_time[i] = 0;
     }
-    else if (sensor_distance > 40)
-    {
-        base_steering = 20;
-    }
-    if (base_steering < 0)
-        base_steering = 0;
-    if (base_steering > 99)
-        base_steering = 99;
-    return base_steering;
+
+    aps_state = false;
+    result_x = MOTOR_STOP;
+    result_y = MOTOR_STOP;
+
+    current_phase = PHASE_SPACE_DETECTION;
+    current_state = WALL_DETECTED;
+    wall_reference_distance = 0;
+    wall_reference_initialized = false;
+    space_start_time = 0;
+    space_end_time = 0;
+    measured_space_size = 0.0f;
+
+    rotate_counter = 0;
 }
 
-/**
- * @brief APS가 판단한 결과(조향/속도 명령, 주차 완료 여부)를 외부로 반환하는 함수
- */
-void Get_APS_Result (int *res_x, int *res_y, int *is_done)
+bool APS_Get_State (void)
 {
-    *res_x = result_x;
-    *res_y = result_y;
-    *is_done = is_APS_done;
+    return aps_state;
 }
 
-/**
- * @brief APS 상태를 설정하는 함수
- */
-void Set_APS_State (int state)
+void APS_Set_State (bool state)
 {
-    if (state < 0 || state > 1)
-    {
-        my_printf("[APS] Invalid state value: %d\n", state);
-        return;
-    }
     aps_state = state;
 
-    if (aps_state == 0)
+    if (aps_state == false)
     {
         APS_Init();
     }
+}
+
+void APS_Restart (void)
+{
+    APS_Init();
+    APS_Set_State(true);
+}
+
+bool APS_Update_Result_Periodic (const ToFData_t *tof_latest_data, const UltrasonicData_t ult_latest_data[],
+        uint64_t interval_us)
+{
+    static uint64_t last_updated_time = 0;
+    uint64_t cur_time = getTimeUs();
+    if (cur_time - last_updated_time < interval_us)
+        return false;
+
+    last_updated_time = cur_time;
+
+    sense_dist[0] = (int) (tof_latest_data->distance_m * 1000);
+    sense_time[0] = tof_latest_data->received_time_us;
+    for (int i = 0; i < ULTRASONIC_COUNT; i++)
+    {
+        sense_dist[i + 1] = (int) ult_latest_data[i].distance_mm;
+        sense_time[i + 1] = ult_latest_data[i].received_time_us;
+    }
+
+    // 디버깅용으로 현재 시간 출력
+    // my_printf("[APS] Current time: %llu us\n", cur_time);
+
+    // 디버깅용으로 센서값 관련된 변수 모두 출력
+    // my_printf("[APS] ToF: %d mm, Ult_L: %d mm, Ult_R: %d mm, Ult_R: %d mm\n",
+    //           sense_dist[0], sense_dist[1], sense_dist[2], sense_dist[3]);
+
+    for (int i = 1; i < SENSOR_DATA_COUNT; i++)
+    {
+        uint64_t sensor_delay = cur_time - sense_time[i];
+        // 디버깅용으로 센서 지연 시간 출력, 상수인 interval_us값도 출력
+        // my_printf("[APS] Sensor %d delay: %llu us (Interval: %llu us)\n", i, sensor_delay, interval_us);
+        if (sensor_delay > interval_us)
+        {
+            // my_printf("[APS] Sensor %d data is too old, skipping...\n", i);
+            return false;
+        }
+    }
+
+    // 수신한 센서 데이터 디버깅용으로 출력
+    my_printf("[APS] Sensor Data: ToF: %d mm, Ult_L: %d mm, Ult_R: %d mm, Ult_R: %d mm\n", sense_dist[0], sense_dist[1],
+            sense_dist[2], sense_dist[3]);
+    APS_Calc_Result();
+    return true;
+}
+
+void APS_Get_Result (int *motor_x, int *motor_y, int64_t *emerAlert_cycle_ms)
+{
+    *motor_x = result_x;
+    *motor_y = result_y;
+    *emerAlert_cycle_ms = result_emerAlert_cycle_ms;
 }

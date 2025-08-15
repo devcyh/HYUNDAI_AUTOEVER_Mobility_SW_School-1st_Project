@@ -1,14 +1,27 @@
 #ifndef BSW_DRIVER_GPIO_H_
 #define BSW_DRIVER_GPIO_H_
 
-#include "Ifx_reg.h"
+#include <stdbool.h>
 
-void GPIO_Init (void);
-void GPIO_SetBuzzer (int state);
+/* For buzzer */
+void GPIO_InitBuzzer (void);
+void GPIO_SetBuzzer (bool state);
 void GPIO_ToggleBuzzer (void);
-int GPIO_GetLed (unsigned char num_LED);
-void GPIO_SetLed (unsigned char num_LED, unsigned char onOff);
-void GPIO_ToggleLed (unsigned char num_LED);
-void GPIO_SetUltTrig (int state);
+
+/* For led */
+void GPIO_InitLed (void);
+void GPIO_SetLed (int led_num, bool state);
+void GPIO_ToggleLed (int led_num);
+
+/* For motor */
+void GPIO_InitMotor (void);
+void GPIO_SetMotorChADir (bool dir);
+void GPIO_SetMotorChABrake (bool state);
+void GPIO_SetMotorChBDir (bool dir);
+void GPIO_SetMotorChBBrake (bool state);
+
+/* For ultrasonic */
+void GPIO_InitUltTrig (void);
+void GPIO_SetUltTrig (bool state);
 
 #endif /* BSW_DRIVER_GPIO_H_ */

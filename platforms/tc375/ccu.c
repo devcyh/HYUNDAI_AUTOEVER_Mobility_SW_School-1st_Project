@@ -1,115 +1,103 @@
 #include "ccu.h"
 
-#define BUF_SIZE 8
-#define MOTOR_STOP 50
-#define CYCLE_INTERVAL_US 40000 // 40000us = 40ms
+#include "bluetooth.h"
+#include "my_stdio.h"
+#include "tof.h"
+#include "ultrasonic.h"
+
+#include "emer_alert.h"
+#include "motor_controller.h"
+
+#include "aeb.h"
+#include "aps.h"
+
+#include "output_status.h"
+
+static const uint64_t CYCLE_INTERVAL_US = 50000; // 50000us = 50ms
 
 void run_ccu (void)
 {
-    static char user_cmd[BUF_SIZE];
-
+    static BluetoothData_t bluetooth_latest_data;
     static ToFData_t tof_latest_data;
     static UltrasonicData_t ult_latest_data[ULTRASONIC_COUNT];
 
-    static uint64 aeb_last_updated_time = 0;
-    static uint64 aps_last_updated_time = 0;
-
     static int pre_motor_x = MOTOR_STOP;
     static int pre_motor_y = MOTOR_STOP;
+    static int64_t pre_emerAlert_cycle_ms = EMER_ALERT_OFF;
 
-    while (1)
+    while (true)
     {
-        /* Keep previous motor value */
+        /* Process data queues */
+        Bluetooth_ProcessQueue();
+        ToF_ProcessQueue();
+        Ultrasonic_ProcessQueue();
+
+        /* Keep previous output value */
         int motor_x = pre_motor_x;
         int motor_y = pre_motor_y;
+        int64_t emerAlert_cycle_ms = pre_emerAlert_cycle_ms;
 
-        /* Check user commands */
-        /* Command priority: 2 (High value - higher priority) */
-        if (Bluetooth_RxQueue_PopString(user_cmd, BUF_SIZE))
+        /* Get bluetooth data */
+        if (Bluetooth_GetLatestData(&bluetooth_latest_data))
         {
-//            my_printf("%s\n", user_cmd);
-            switch (user_cmd[0])
+//            my_printf("user cmd: %d %d %d\n", bluetooth_latest_data.type, bluetooth_latest_data.param1,
+//                    bluetooth_latest_data.param2);
+
+            /* Check user commands */
+            /* Command priority: 2 (High value - higher priority) */
+            switch (bluetooth_latest_data.type)
             {
-                case 'M' : // 'Move'
-                    Set_APS_State(0); // APS turns off when user inputs a 'Move' command
-
+                case BLUETOOTH_CMD_MOVE :
                     // Set motor inputs
-                    user_cmd[5] = '\0';
-                    motor_y = atoi(user_cmd + 3);
-                    user_cmd[3] = '\0';
-                    motor_x = atoi(user_cmd + 1);
+                    motor_x = bluetooth_latest_data.param1;
+                    motor_y = bluetooth_latest_data.param2;
+
+                    // APS turns off when user inputs a 'Move' command
+                    APS_Set_State(false);
 
                     break;
 
-                case 'P' : // 'Automatic parking'
-                    Set_APS_State(1); // APS on
+                case BLUETOOTH_CMD_PARK :
+                    // APS on
+                    APS_Set_State(true);
 
                     break;
 
-                default : // Invalid command
+                default :
                     break;
             }
         }
 
         /* Get ToF data */
-        ToF_ProcessQueue();
-        ToF_GetLatestData(&tof_latest_data);
-//        my_printf("0/%lf ", tof_latest_data.distance_m);
+        if (ToF_GetLatestData(&tof_latest_data))
+        {
+//            my_printf("ToF/%lf ", tof_latest_data.distance_m);
+
+            /* Update AEB state */
+            AEB_Update_State(&tof_latest_data);
+
+            /* Get AEB result */
+            /* Command priority: 3 */
+            if (AEB_Get_State())
+            {
+//                APS_Set_State(false); // APS off
+            }
+            AEB_Get_Result(&motor_x, &motor_y, &emerAlert_cycle_ms);
+        }
 
         /* Get ultrasonic data */
-        Ultrasonic_ProcessQueue();
         for (int i = 0; i < ULTRASONIC_COUNT; i++)
         {
             Ultrasonic_GetLatestData(i, &ult_latest_data[i]);
-//            my_printf("%d/%d ", ult_latest_data[i].distance_mm);
-        }
-//        my_printf("\n");
-
-        /* Check AEB */
-        /* Command priority: 3 */
-        uint64 cur_time = getTimeUs();
-        if (cur_time - aeb_last_updated_time >= CYCLE_INTERVAL_US)
-        {
-            AEB_UpdateState(&tof_latest_data, CYCLE_INTERVAL_US);
-            aeb_last_updated_time = cur_time;
+//            my_printf("Ult%d/%d ", ult_latest_data[i].distance_mm);
         }
 
-        if (AEB_GetState() && !Get_APS_State())
+        /* Check APS & Update APS state */
+        if (APS_Get_State() && APS_Update_Result_Periodic(&tof_latest_data, ult_latest_data, CYCLE_INTERVAL_US))
         {
-            Set_APS_State(0); // APS off
-            AEBAlert_On();
-            if (motor_y > MOTOR_STOP) // If it moves forward
-            {
-                motor_x = motor_y = MOTOR_STOP;
-            }
-        }
-        else
-        {
-            AEBAlert_Off();
-        }
-
-        /* Check APS */
-        /* Command priority: 1 */
-        if (Get_APS_State())
-        {
-            int aps_result_updated = 0;
-
-            cur_time = getTimeUs();
-            if (cur_time - aps_last_updated_time >= CYCLE_INTERVAL_US)
-            {
-                aps_result_updated = Update_APS_Result(&tof_latest_data, ult_latest_data, CYCLE_INTERVAL_US);
-                aps_last_updated_time = cur_time;
-            }
-
-            if (aps_result_updated)
-            {
-                int is_done;
-                Get_APS_Result(&motor_x, &motor_y, &is_done);
-                if (is_done)
-                {
-                    Set_APS_State(0); // Terminate APS when it's done or has problem
-                }
-            }
+            /* Get APS result */
+            /* Command priority: 1 */
+            APS_Get_Result(&motor_x, &motor_y, &emerAlert_cycle_ms);
         }
 
         /* Check motor control input */
@@ -122,5 +110,9 @@ void run_ccu (void)
                 pre_motor_y = motor_y;
             }
         }
+
+        /* Update emergency alert state */
+        EmerAlert_Update_Periodic(emerAlert_cycle_ms);
+        pre_emerAlert_cycle_ms = emerAlert_cycle_ms;
     }
 }

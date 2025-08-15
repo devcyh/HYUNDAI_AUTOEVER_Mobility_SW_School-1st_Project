@@ -1,16 +1,8 @@
 #ifndef BSW_IO_TOF_H_
 #define BSW_IO_TOF_H_
 
-#include <stdint.h>
 #include <stdbool.h>
-#include "byte_queue.h"
-
-#include "stm.h"
-
-#define TOF_FRAME_LENGTH 16
-#define TOF_FRAME_HEADER 0x57
-
-#define TOF_BUFFER_SIZE 64
+#include <stdint.h>
 
 typedef struct
 {
@@ -23,7 +15,7 @@ typedef struct
 } ToFData_t;
 
 // 초기화
-void ToF_Init (void);
+bool ToF_Init (int buffer_size, int max_bytes);
 
 // 인터럽트에서 호출
 void ToF_RxHandler (uint8_t byte);

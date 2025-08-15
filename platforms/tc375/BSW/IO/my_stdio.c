@@ -1,30 +1,42 @@
-/*********************************************************************************************************************/
-/*-----------------------------------------------------Includes------------------------------------------------------*/
-/*********************************************************************************************************************/
 #include "my_stdio.h"
-#include "IfxAsclin_Asc.h"
-#include "IfxCpu_Irq.h"
-#include "asclin.h"
-#include <stddef.h>
-#include <stdlib.h>
+
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-/*********************************************************************************************************************/
-/*------------------------------------------------------Macros-------------------------------------------------------*/
-/*********************************************************************************************************************/
-#define BUFSIZE     128
+#include "asclin.h"
+
+#define BUFSIZE 128
 #define KB_BS '\x7F'
 #define KB_CR '\r'
 
-/*********************************************************************************************************************/
-/*------------------------------------------------Function Definition------------------------------------------------*/
-/*********************************************************************************************************************/
-void remove_null (char *s);
+void MyStdio_Init (void)
+{
+    /* Initialize */
+    Asclin0_InitUart();
+}
 
-/*********************************************************************************************************************/
-/*---------------------------------------------Function Implementations----------------------------------------------*/
-/*********************************************************************************************************************/
+static void remove_null (char *s)
+{
+    int i, start_idx;
+    char buf[128];
+
+    start_idx = 0;
+    while (*(s + start_idx++) == '\0')
+        ;
+    memset(buf, 0, 128);
+    strcpy(buf, (s + (start_idx - 1)));
+
+    memset(s, 0, 128);
+    i = 0;
+    while (buf[i] != '\0')
+    {
+        *(s + i) = buf[i];
+        ++i;
+    }
+    *(s + i) = '\0';
+}
+
 void my_puts (const char *str)
 {
     char buffer[BUFSIZE];
@@ -40,7 +52,7 @@ void my_printf (const char *fmt, ...)
 {
     char buffer[128];
     char buffer2[128]; // add \r before \n
-    sint16 len = 0;
+    int16_t len = 0;
     va_list ap;
 
     va_start(ap, fmt);
@@ -69,7 +81,7 @@ void my_printf (const char *fmt, ...)
 
 void my_scanf (const char *fmt, ...)
 {
-    uint8 c = 0;
+    uint8_t c = 0;
     char buf[128];
     int idx = 0, i;
     char *pstr, *pidx;
@@ -111,7 +123,7 @@ void my_scanf (const char *fmt, ...)
     {
         if (c == '%')
         {
-            uint8 c1;
+            uint8_t c1;
             c = *fmt++;
             switch (c)
             {
@@ -208,25 +220,4 @@ void my_scanf (const char *fmt, ...)
         }
     }
     va_end(ap);
-}
-
-void remove_null (char *s)
-{
-    int i, start_idx;
-    char buf[128];
-
-    start_idx = 0;
-    while (*(s + start_idx++) == '\0')
-        ;
-    memset(buf, 0, 128);
-    strcpy(buf, (s + (start_idx - 1)));
-
-    memset(s, 0, 128);
-    i = 0;
-    while (buf[i] != '\0')
-    {
-        *(s + i) = buf[i];
-        ++i;
-    }
-    *(s + i) = '\0';
 }

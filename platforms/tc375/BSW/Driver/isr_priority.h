@@ -4,17 +4,17 @@
 /* Definition of the interrupt priorities */
 /* High value - higher priority */
 
-#define ISR_PRIORITY_ASCLIN0_RX 1
-#define ISR_PRIORITY_ASCLIN0_TX 2
+#define ISR_PRIORITY_ASCLIN0_RX 0
+#define ISR_PRIORITY_ASCLIN0_TX 0
 
 #define ISR_PRIORITY_ASCLIN1_RX 3
-//#define ISR_PRIORITY_ASCLIN1_TX 4
+#define ISR_PRIORITY_ASCLIN1_TX 0
 
 #define ISR_PRIORITY_ASCLIN2_RX 5
-//#define ISR_PRIORITY_ASCLIN2_TX 6
+#define ISR_PRIORITY_ASCLIN2_TX 0
 
-#define ISR_PRIORITY_GPT1T3_TIMER 8 /* Define the GPT1 Timer interrupt priority */
-#define ISR_PRIORITY_GPT2T6_TIMER 7 /* Define the GPT2 Timer interrupt priority */
+#define ISR_PRIORITY_GPT1T3_TIMER 8
+#define ISR_PRIORITY_GPT2T6_TIMER 7
 
 #define ISR_PRIORITY_STM0 9
 

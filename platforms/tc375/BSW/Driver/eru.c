@@ -1,29 +1,35 @@
 #include "eru.h"
 
+#include "IfxCpu.h"
+
+#include "isr_priority.h"
+
+#include "ultrasonic.h"
+
 IFX_INTERRUPT(SCUERU_Int0_Handler, 0, ISR_PRIORITY_SCUERU0);
 void SCUERU_Int0_Handler (void)
 {
-    int input_pin_state = MODULE_P15.IN.B.P4;
+    bool input_pin_state = MODULE_P15.IN.B.P4;
     Ultrasonic_EchoHandler(ULTRASONIC_LEFT, input_pin_state);
 }
 
 IFX_INTERRUPT(SCUERU_Int1_Handler, 0, ISR_PRIORITY_SCUERU1);
 void SCUERU_Int1_Handler (void)
 {
-    int input_pin_state = MODULE_P15.IN.B.P5;
+    bool input_pin_state = MODULE_P15.IN.B.P5;
     Ultrasonic_EchoHandler(ULTRASONIC_RIGHT, input_pin_state);
 }
 
 IFX_INTERRUPT(SCUERU_Int2_Handler, 0, ISR_PRIORITY_SCUERU2);
 void SCUERU_Int2_Handler (void)
 {
-    int input_pin_state = MODULE_P02.IN.B.P0;
+    bool input_pin_state = MODULE_P02.IN.B.P0;
     Ultrasonic_EchoHandler(ULTRASONIC_REAR, input_pin_state);
 }
 
 void ScuEru_Init0 (void)
 {
-    uint16 password = IfxScuWdt_getSafetyWatchdogPasswordInline();
+    uint16_t password = IfxScuWdt_getSafetyWatchdogPasswordInline();
     IfxScuWdt_clearSafetyEndinitInline(password);
 
     MODULE_P15.IOCR4.B.PC4 = 0x02; /* Set P15.4 as pull-up input */
@@ -52,7 +58,7 @@ void ScuEru_Init0 (void)
 
 void ScuEru_Init1 (void)
 {
-    uint16 password = IfxScuWdt_getSafetyWatchdogPasswordInline();
+    uint16_t password = IfxScuWdt_getSafetyWatchdogPasswordInline();
     IfxScuWdt_clearSafetyEndinitInline(password);
 
     MODULE_P15.IOCR4.B.PC5 = 0x02; /* Set P15.5 as pull-up input */
@@ -81,7 +87,7 @@ void ScuEru_Init1 (void)
 
 void ScuEru_Init2 (void)
 {
-    uint16 password = IfxScuWdt_getSafetyWatchdogPasswordInline();
+    uint16_t password = IfxScuWdt_getSafetyWatchdogPasswordInline();
     IfxScuWdt_clearSafetyEndinitInline(password);
 
     MODULE_P02.IOCR0.B.PC0 = 0x02; /* Set P02.0 as pull-up input */

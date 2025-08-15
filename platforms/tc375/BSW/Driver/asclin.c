@@ -1,5 +1,13 @@
 #include "asclin.h"
 
+#include "IfxAsclin_Asc.h"
+#include "IfxAsclin_bf.h"
+
+#include "isr_priority.h"
+
+#include "bluetooth.h"
+#include "tof.h"
+
 //IFX_INTERRUPT(Asclin0RxIsrHandler, 0, ISR_PRIORITY_ASCLIN0_RX);
 //void Asclin0RxIsrHandler (void)
 //{
@@ -71,7 +79,7 @@ void Asclin0_InitUart (void)
 }
 
 /* Send character CHR via the serial line */
-void Asclin0_OutUart (const unsigned char chr)
+void Asclin0_OutUart (const unsigned char ch)
 {
     /* wait until space is available in the FIFO */
     while (!(MODULE_ASCLIN0.FLAGS.B.TFL != 0))
@@ -81,7 +89,7 @@ void Asclin0_OutUart (const unsigned char chr)
     MODULE_ASCLIN0.FLAGSCLEAR.U = (IFX_ASCLIN_FLAGSCLEAR_TFLC_MSK << IFX_ASCLIN_FLAGSCLEAR_TFLC_OFF);
 
     /* send the character */
-    MODULE_ASCLIN0.TXDATA.U = chr;
+    MODULE_ASCLIN0.TXDATA.U = ch;
 }
 
 /* Receive (and wait for) a character from the serial line */
@@ -99,19 +107,19 @@ unsigned char Asclin0_InUart (void)
 unsigned char Asclin0_InUartNonBlock (void)
 {
     unsigned char ch = 0;
-    int res = Asclin0_PollUart(&ch);
+    bool res = Asclin0_PollUart(&ch);
 
-    return res == 1 ? ch : -1;
+    return res == true ? ch : -1;
 }
 
 /* Check the serial line if a character has been received.
  returns 1 and the character in *chr if there is one
  else 0
  */
-int Asclin0_PollUart (unsigned char *chr)
+bool Asclin0_PollUart (unsigned char *ch)
 {
     unsigned char ret;
-    int res = 0;
+    bool res = false;
 
     if (MODULE_ASCLIN0.FLAGS.B.RFL != 0) /* If RX Ready */
     {
@@ -133,8 +141,8 @@ int Asclin0_PollUart (unsigned char *chr)
         else
         {
             /* this is a valid character */
-            *chr = ret;
-            res = 1;
+            *ch = ret;
+            res = true;
         }
     }
 
@@ -213,7 +221,7 @@ void Asclin1_InitUart (void)
 }
 
 /* Send character CHR via the serial line */
-void Asclin1_OutUart (const unsigned char chr)
+void Asclin1_OutUart (const unsigned char ch)
 {
     /* wait until space is available in the FIFO */
     while (!(MODULE_ASCLIN1.FLAGS.B.TFL != 0))
@@ -223,7 +231,7 @@ void Asclin1_OutUart (const unsigned char chr)
     MODULE_ASCLIN1.FLAGSCLEAR.U = (IFX_ASCLIN_FLAGSCLEAR_TFLC_MSK << IFX_ASCLIN_FLAGSCLEAR_TFLC_OFF);
 
     /* send the character */
-    MODULE_ASCLIN1.TXDATA.U = chr;
+    MODULE_ASCLIN1.TXDATA.U = ch;
 }
 
 /* Receive (and wait for) a character from the serial line */
@@ -241,19 +249,19 @@ unsigned char Asclin1_InUart (void)
 unsigned char Asclin1_InUartNonBlock (void)
 {
     unsigned char ch = 0;
-    int res = Asclin1_PollUart(&ch);
+    bool res = Asclin1_PollUart(&ch);
 
-    return res == 1 ? ch : -1;
+    return res == true ? ch : -1;
 }
 
 /* Check the serial line if a character has been received.
  returns 1 and the character in *chr if there is one
  else 0
  */
-int Asclin1_PollUart (unsigned char *chr)
+bool Asclin1_PollUart (unsigned char *ch)
 {
     unsigned char ret;
-    int res = 0;
+    bool res = false;
 
     if (MODULE_ASCLIN1.FLAGS.B.RFL != 0) /* If RX Ready */
     {
@@ -275,8 +283,8 @@ int Asclin1_PollUart (unsigned char *chr)
         else
         {
             /* this is a valid character */
-            *chr = ret;
-            res = 1;
+            *ch = ret;
+            res = true;
         }
     }
 
@@ -354,7 +362,7 @@ void Asclin2_InitUart (void)
 }
 
 /* Send character CHR via the serial line */
-void Asclin2_OutUart (const unsigned char chr)
+void Asclin2_OutUart (const unsigned char ch)
 {
     /* wait until space is available in the FIFO */
     while (!(MODULE_ASCLIN2.FLAGS.B.TFL != 0))
@@ -364,7 +372,7 @@ void Asclin2_OutUart (const unsigned char chr)
     MODULE_ASCLIN2.FLAGSCLEAR.U = (IFX_ASCLIN_FLAGSCLEAR_TFLC_MSK << IFX_ASCLIN_FLAGSCLEAR_TFLC_OFF);
 
     /* send the character */
-    MODULE_ASCLIN2.TXDATA.U = chr;
+    MODULE_ASCLIN2.TXDATA.U = ch;
 }
 
 /* Receive (and wait for) a character from the serial line */
@@ -382,19 +390,19 @@ unsigned char Asclin2_InUart (void)
 unsigned char Asclin2_InUartNonBlock (void)
 {
     unsigned char ch = 0;
-    int res = Asclin2_PollUart(&ch);
+    bool res = Asclin2_PollUart(&ch);
 
-    return res == 1 ? ch : -1;
+    return res == true ? ch : -1;
 }
 
 /* Check the serial line if a character has been received.
  returns 1 and the character in *chr if there is one
  else 0
  */
-int Asclin2_PollUart (unsigned char *chr)
+bool Asclin2_PollUart (unsigned char *ch)
 {
     unsigned char ret;
-    int res = 0;
+    bool res = false;
 
     if (MODULE_ASCLIN2.FLAGS.B.RFL != 0) /* If RX Ready */
     {
@@ -416,8 +424,8 @@ int Asclin2_PollUart (unsigned char *chr)
         else
         {
             /* this is a valid character */
-            *chr = ret;
-            res = 1;
+            *ch = ret;
+            res = true;
         }
     }
 
