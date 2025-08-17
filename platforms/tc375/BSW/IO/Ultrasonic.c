@@ -15,7 +15,7 @@ static int max_events_per_call;
 static UltrasonicData_t latest_data[ULTRASONIC_COUNT];
 static bool data_ready[ULTRASONIC_COUNT] = {false};
 
-bool Ultrasonic_Init (int buffer_size, int max_bytes)
+bool Ultrasonic_Init (int buffer_size, int max_events)
 {
     /* Initialize */
     for (int i = 0; i < ULTRASONIC_COUNT; ++i)
@@ -24,7 +24,7 @@ bool Ultrasonic_Init (int buffer_size, int max_bytes)
             return false;
     }
 
-    max_events_per_call = max_bytes;
+    max_events_per_call = max_events;
 
     ScuEru_Init0();
     ScuEru_Init1();

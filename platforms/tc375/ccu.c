@@ -54,13 +54,13 @@ void run_ccu (void)
                     motor_y = bluetooth_latest_data.param2;
 
                     // APS turns off when user inputs a 'Move' command
-                    APS_Set_State(false);
+                    APS_SetState(false);
 
                     break;
 
                 case BLUETOOTH_CMD_PARK :
                     // APS on
-                    APS_Set_State(true);
+                    APS_SetState(true);
 
                     break;
 
@@ -75,15 +75,15 @@ void run_ccu (void)
 //            my_printf("ToF/%lf ", tof_latest_data.distance_m);
 
             /* Update AEB state */
-            AEB_Update_State(&tof_latest_data, &motor_controller_latest_data);
+            AEB_UpdateState(&tof_latest_data, &motor_controller_latest_data);
 
             /* Get AEB result */
             /* Command priority: 3 */
-            if (AEB_Get_State())
+            if (AEB_GetState())
             {
 //                APS_Set_State(false); // APS off
             }
-            AEB_Get_Result(&motor_x, &motor_y, &emerAlert_cycle_ms);
+            AEB_GetResult(&motor_x, &motor_y, &emerAlert_cycle_ms);
         }
 
         /* Get ultrasonic data */
@@ -94,11 +94,11 @@ void run_ccu (void)
         }
 
         /* Check APS & Update APS state */
-        if (APS_Get_State() && APS_Update_Result_Periodic(&tof_latest_data, ult_latest_data, CYCLE_INTERVAL_US))
+        if (APS_GetState() && APS_UpdateResult_Periodic(&tof_latest_data, ult_latest_data, CYCLE_INTERVAL_US))
         {
             /* Get APS result */
             /* Command priority: 1 */
-            APS_Get_Result(&motor_x, &motor_y, &emerAlert_cycle_ms);
+            APS_GetResult(&motor_x, &motor_y, &emerAlert_cycle_ms);
         }
 
         /* Check motor control input */

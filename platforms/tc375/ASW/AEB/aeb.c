@@ -101,18 +101,18 @@ static bool AEB_IsEmergencyBrakingRequired (const ToFData_t *tof_latest_data,
     return false;
 }
 
-bool AEB_Update_State (const ToFData_t *tof_latest_data, const MotorControllerData_t *motor_controller_latest_data)
+bool AEB_UpdateState (const ToFData_t *tof_latest_data, const MotorControllerData_t *motor_controller_latest_data)
 {
     aeb_state = AEB_IsEmergencyBrakingRequired(tof_latest_data, motor_controller_latest_data);
     return true;
 }
 
-bool AEB_Get_State (void)
+bool AEB_GetState (void)
 {
     return aeb_state;
 }
 
-void AEB_Get_Result (int *motor_x, int *motor_y, int64_t *emerAlert_cycle_ms)
+void AEB_GetResult (int *motor_x, int *motor_y, int64_t *emerAlert_cycle_ms)
 {
     if (aeb_state)
     {

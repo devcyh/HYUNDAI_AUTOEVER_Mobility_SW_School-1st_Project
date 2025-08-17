@@ -8,11 +8,11 @@
 #include "ultrasonic_types.h"
 
 void APS_Init (void);
-bool APS_Get_State (void);
-void APS_Set_State (bool state);
+bool APS_GetState (void);
+void APS_SetState (bool state);
 void APS_Restart (void);
-bool APS_Update_Result_Periodic (const ToFData_t *tof_latest_data, const UltrasonicData_t ult_latest_data[],
+bool APS_UpdateResult_Periodic (const ToFData_t *tof_latest_data, const UltrasonicData_t ult_latest_data[],
         uint64_t interval_us);
-void APS_Get_Result (int *motor_x, int *motor_y, int64_t *emerAlert_cycle_ms);
+void APS_GetResult (int *motor_x, int *motor_y, int64_t *emerAlert_cycle_ms);
 
 #endif /* ASW_APS_APS_H_ */

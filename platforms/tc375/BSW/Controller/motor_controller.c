@@ -8,12 +8,12 @@
 
 // 상수 정의
 #define MOTOR_SPEED_MAX     100
-#define MOTOR_SPEED_MIN     -100
+#define MOTOR_SPEED_MIN     -MOTOR_SPEED_MAX
 #define MOTOR_SPEED_CENTER  0
 #define JOYSTICK_MAX        99
 #define JOYSTICK_MIN        0
 #define JOYSTICK_CENTER     50
-#define DEFAULT_DEADZONE    8
+#define JOYSTICK_DEADZONE   8
 
 // 모터 채널 정의
 typedef enum
@@ -66,8 +66,8 @@ static void MotorController_SetMotor (MotorChannel_t channel, int speed)
 // 좌/우 모터 속도 설정
 static void MotorController_SetSpeed (int left_speed, int right_speed)
 {
-    left_speed = clamp(left_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
-    right_speed = clamp(right_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+    left_speed = my_clamp(left_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+    right_speed = my_clamp(right_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
 
     MotorController_SetMotor(MotorChannel_ChA, right_speed);
     MotorController_SetMotor(MotorChannel_ChB, left_speed);
@@ -81,7 +81,7 @@ static void MotorController_SetSpeed (int left_speed, int right_speed)
 // 조이스틱 값 매핑 (데드존 포함)
 static int MotorController_MapJoystickValue (int value, int deadzone)
 {
-    value = clamp(value, JOYSTICK_MIN, JOYSTICK_MAX);
+    value = my_clamp(value, JOYSTICK_MIN, JOYSTICK_MAX);
     int offset = value - JOYSTICK_CENTER;
 
     if (my_abs(offset) < deadzone)
@@ -102,10 +102,10 @@ bool MotorController_ProcessJoystickInput (int x, int y)
     if (x < JOYSTICK_MIN || x > JOYSTICK_MAX || y < JOYSTICK_MIN || y > JOYSTICK_MAX)
         return false;
 
-    int x_speed = MotorController_MapJoystickValue(x, DEFAULT_DEADZONE);
+    int x_speed = MotorController_MapJoystickValue(x, JOYSTICK_DEADZONE);
     int y_speed = MotorController_MapJoystickValue(y, 0); // Y축은 데드존 없음
 
-    x_speed = (x_speed * 60) / 100; // X축 영향 축소
+    x_speed = (x_speed * 60) / 100; // X축 영향 축소 (-60 ~ +60)
 
     int left_speed = y_speed + x_speed;
     int right_speed = y_speed - x_speed;
@@ -117,19 +117,19 @@ bool MotorController_ProcessJoystickInput (int x, int y)
 // WASD 입력 처리
 bool MotorController_ProcessWASDInput (char key)
 {
-    static int base_speed = MOTOR_SPEED_CENTER;  // 기본 전/후진 속도
-    int turn_offset = 0;  // 좌/우 회전 속도 차이
+    static int base_speed = MOTOR_SPEED_CENTER; // 기본 전/후진 속도
+    int turn_offset = MOTOR_SPEED_CENTER; // 좌/우 회전 속도 차이
 
     switch (key)
     {
         case 'w' :
         case 'W' :
             base_speed = MOTOR_SPEED_MAX;
-            break;  // 전진
+            break; // 전진
         case 's' :
         case 'S' :
             base_speed = MOTOR_SPEED_MIN;
-            break;  // 후진
+            break; // 후진
         case 'a' :
         case 'A' :
             turn_offset = MOTOR_SPEED_MAX / 2;
@@ -151,8 +151,8 @@ bool MotorController_ProcessWASDInput (char key)
     int right_speed = base_speed + turn_offset;
 
     // 속도 범위 클램핑
-    left_speed = clamp(left_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
-    right_speed = clamp(right_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+    left_speed = my_clamp(left_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+    right_speed = my_clamp(right_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
 
     MotorController_SetSpeed(left_speed, right_speed);
     return true;

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "ultrasonic_types.h"
 
-bool Ultrasonic_Init (int buffer_size, int max_bytes);
+bool Ultrasonic_Init (int buffer_size, int max_events);
 void Ultrasonic_EchoHandler (UltrasonicSide side, bool input_pin_state);
 void Ultrasonic_ProcessQueue (void);
 bool Ultrasonic_GetLatestData (UltrasonicSide side, UltrasonicData_t *out);

@@ -6,7 +6,7 @@ static inline int my_abs (int value)
     return (value < 0) ? -value : value;
 }
 
-static inline int clamp (int value, int min, int max)
+static inline int my_clamp (int value, int min, int max)
 {
     if (value > max)
         return max;

@@ -143,7 +143,7 @@ static int APS_Test_MapJoystickValue (int value)
  */
 static int PHASE_PARKING_EXECUTION_STATE = 1;
 // static APS_WallSpaceState_t PHASE_PARKING_EXECUTION_NEW_STATE = WALL_DETECTED;
-static void APS_Calc_Result (void)
+static void APS_CalcResult (void)
 {
     int left_distance = sense_dist[1]; // 근데 어차피 안쓰고있음
     int rear_distance = sense_dist[3];
@@ -301,12 +301,12 @@ void APS_Init (void)
     rotate_counter = 0;
 }
 
-bool APS_Get_State (void)
+bool APS_GetState (void)
 {
     return aps_state;
 }
 
-void APS_Set_State (bool state)
+void APS_SetState (bool state)
 {
     aps_state = state;
 
@@ -319,10 +319,10 @@ void APS_Set_State (bool state)
 void APS_Restart (void)
 {
     APS_Init();
-    APS_Set_State(true);
+    APS_SetState(true);
 }
 
-bool APS_Update_Result_Periodic (const ToFData_t *tof_latest_data, const UltrasonicData_t ult_latest_data[],
+bool APS_UpdateResult_Periodic (const ToFData_t *tof_latest_data, const UltrasonicData_t ult_latest_data[],
         uint64_t interval_us)
 {
     static uint64_t last_updated_time = 0;
@@ -362,11 +362,11 @@ bool APS_Update_Result_Periodic (const ToFData_t *tof_latest_data, const Ultraso
     // 수신한 센서 데이터 디버깅용으로 출력
     my_printf("[APS] Sensor Data: ToF: %d mm, Ult_L: %d mm, Ult_R: %d mm, Ult_R: %d mm\n", sense_dist[0], sense_dist[1],
             sense_dist[2], sense_dist[3]);
-    APS_Calc_Result();
+    APS_CalcResult();
     return true;
 }
 
-void APS_Get_Result (int *motor_x, int *motor_y, int64_t *emerAlert_cycle_ms)
+void APS_GetResult (int *motor_x, int *motor_y, int64_t *emerAlert_cycle_ms)
 {
     *motor_x = result_x;
     *motor_y = result_y;
