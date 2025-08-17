@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "tof.h"
-#include "ultrasonic.h"
+#include "tof_types.h"
+#include "ultrasonic_types.h"
 
 void APS_Init (void);
 bool APS_Get_State (void);

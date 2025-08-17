@@ -40,8 +40,8 @@ void run_ccu (void)
         /* Get bluetooth data */
         if (Bluetooth_GetLatestData(&bluetooth_latest_data))
         {
-//            my_printf("user cmd: %d %d %d\n", bluetooth_latest_data.type, bluetooth_latest_data.param1,
-//                    bluetooth_latest_data.param2);
+//            my_printf("user cmd: %d %d %d %llu\n", bluetooth_latest_data.type, bluetooth_latest_data.param1,
+//                    bluetooth_latest_data.param2, bluetooth_latest_data.received_time_us);
 
             /* Check user commands */
             /* Command priority: 2 (High value - higher priority) */

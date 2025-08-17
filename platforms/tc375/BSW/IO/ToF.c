@@ -5,12 +5,12 @@
 
 #include "byte_queue.h"
 
-#define TOF_FRAME_LENGTH 16
-#define TOF_FRAME_HEADER 0x57
+#define TOF_PACKET_LENGTH 16
+#define TOF_PACKET_HEADER 0x57
 
 static ByteQueue rx_queue;
-static uint64_t sync_start_time_us[BYTE_QUEUE_MAX_BUF_SIZE];
-static int max_bytes_per_call = TOF_FRAME_LENGTH * 2; // 기본값
+static uint64_t header_timestamp_us[BYTE_QUEUE_MAX_BUF_SIZE];
+static int max_bytes_per_call;
 
 static ToFData_t latest_data;
 static bool data_ready = false;
@@ -30,14 +30,12 @@ bool ToF_Init (int buffer_size, int max_bytes)
 
 void ToF_RxHandler (uint8_t byte)
 {
-    int tail = rx_queue.tail;
+    if (byte == TOF_PACKET_HEADER)
+    {
+        header_timestamp_us[rx_queue.tail] = getTimeUs();
+    }
 
     ByteQueue_Push(&rx_queue, byte);
-
-    if (byte == TOF_FRAME_HEADER)
-    {
-        sync_start_time_us[tail] = getTimeUs();
-    }
 }
 
 static bool verifyCheckSum (const uint8_t *data, int length)
@@ -52,9 +50,9 @@ static bool verifyCheckSum (const uint8_t *data, int length)
 
 static bool parseToFPacket (const uint8_t *packet, ToFData_t *out)
 {
-    if (packet[0] != TOF_FRAME_HEADER)
+    if (packet[0] != TOF_PACKET_HEADER)
         return false;
-    if (!verifyCheckSum(packet, TOF_FRAME_LENGTH))
+    if (!verifyCheckSum(packet, TOF_PACKET_LENGTH))
         return false;
 
     out->id = packet[3];
@@ -62,7 +60,8 @@ static bool parseToFPacket (const uint8_t *packet, ToFData_t *out)
     out->system_time_ms = ((uint32_t) packet[4]) | ((uint32_t) packet[5] << 8) | ((uint32_t) packet[6] << 16)
             | ((uint32_t) packet[7] << 24);
 
-    int32_t dist_raw = ((int32_t) (packet[8] << 8) | (int32_t) (packet[9] << 16) | (int32_t) (packet[10] << 24)) / 256;
+    int32_t dist_raw = (int32_t) (((uint32_t) packet[8] << 8) | ((uint32_t) packet[9] << 16)
+            | ((uint32_t) packet[10] << 24)) / 256;
     out->distance_m = dist_raw / 1000.0f;
 
     out->distance_status = packet[11];
@@ -74,44 +73,39 @@ static bool parseToFPacket (const uint8_t *packet, ToFData_t *out)
 
 void ToF_ProcessQueue (void)
 {
-    static uint8_t packet[TOF_FRAME_LENGTH];
-    static int index = 0;
-    static bool syncing = false;
-
-    static uint64_t frame_start_time_us = 0;
+    static uint8_t packet[TOF_PACKET_LENGTH];
+    static int packet_index = 0;
+    static uint64_t packet_start_time_us = 0;
 
     uint8_t byte;
-    int pop_cnt = 0;
+    int bytes_processed = 0;
 
-    while (pop_cnt < max_bytes_per_call && ByteQueue_Pop(&rx_queue, &byte))
+    while (bytes_processed < max_bytes_per_call && ByteQueue_Pop(&rx_queue, &byte))
     {
-        pop_cnt++;
-
-        if (!syncing)
+        if (packet_index == 0) // 패킷 시작 대기 중
         {
-            if (byte == TOF_FRAME_HEADER)
+            if (byte == TOF_PACKET_HEADER)
             {
-                index = 0;
-                packet[index++] = byte;
+                packet[packet_index++] = byte;
                 int head = (rx_queue.head - 1 + rx_queue.capacity) % rx_queue.capacity;
-                frame_start_time_us = sync_start_time_us[head];
-                syncing = true;
+                packet_start_time_us = header_timestamp_us[head];
             }
         }
-        else
+        else // 패킷 수집 중
         {
-            packet[index++] = byte;
-            if (index >= TOF_FRAME_LENGTH)
+            packet[packet_index++] = byte;
+            if (packet_index >= TOF_PACKET_LENGTH) // 패킷 길이 도달
             {
-                syncing = false;
-                index = 0;
                 if (parseToFPacket(packet, &latest_data))
                 {
-                    latest_data.received_time_us = frame_start_time_us;
+                    latest_data.received_time_us = packet_start_time_us;
                     data_ready = true;
                 }
+                packet_index = 0; // 다음 패킷 준비
             }
         }
+
+        bytes_processed++;
     }
 }
 

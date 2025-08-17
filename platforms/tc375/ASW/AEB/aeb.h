@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "tof.h"
+#include "tof_types.h"
 
 bool AEB_Update_State (const ToFData_t *tof_latest_data);
 bool AEB_Get_State (void);

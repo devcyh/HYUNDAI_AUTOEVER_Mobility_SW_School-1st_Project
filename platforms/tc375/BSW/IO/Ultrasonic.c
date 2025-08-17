@@ -13,7 +13,7 @@
 
 static EruEventQueue rx_queues[ULTRASONIC_COUNT];
 static AverageFilter filters[ULTRASONIC_COUNT];
-static int max_events_per_call = 32; // 기본값
+static int max_events_per_call;
 
 static UltrasonicData_t latest_data[ULTRASONIC_COUNT];
 static bool data_ready[ULTRASONIC_COUNT] = {false};
@@ -62,12 +62,10 @@ void Ultrasonic_ProcessQueue (void)
     for (int ult_idx = 0; ult_idx < ULTRASONIC_COUNT; ++ult_idx)
     {
         EruEvent evt;
-        int pop_cnt = 0;
+        int events_processed = 0;
 
-        while (pop_cnt < max_events_per_call && EruEventQueue_Pop(&rx_queues[ult_idx], &evt))
+        while (events_processed < max_events_per_call && EruEventQueue_Pop(&rx_queues[ult_idx], &evt))
         {
-            pop_cnt++;
-
             if (evt.pin_state) // Rising edge
             {
                 last_rise_time[ult_idx] = evt.timestamp_us;
@@ -85,6 +83,8 @@ void Ultrasonic_ProcessQueue (void)
                 }
                 last_rise_time[ult_idx] = 0; // 다음 측정을 위해 초기화
             }
+
+            events_processed++;
         }
     }
 }

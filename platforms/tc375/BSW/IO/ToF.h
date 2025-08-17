@@ -2,17 +2,7 @@
 #define BSW_IO_TOF_H_
 
 #include <stdbool.h>
-#include <stdint.h>
-
-typedef struct
-{
-    uint8_t id;
-    uint32_t system_time_ms;
-    float distance_m;
-    uint8_t distance_status;
-    uint16_t signal_strength;
-    uint64_t received_time_us;
-} ToFData_t;
+#include "tof_types.h"
 
 // 초기화
 bool ToF_Init (int buffer_size, int max_bytes);
