@@ -69,12 +69,13 @@
 
 static volatile bool aeb_state = false;
 
-static bool AEB_IsEmergencyBrakingRequired (const ToFData_t *tof_latest_data)
+static bool AEB_IsEmergencyBrakingRequired (const ToFData_t *tof_latest_data,
+        const MotorControllerData_t *motor_controller_latest_data)
 {
     int distance_mm = (int) (tof_latest_data->distance_m * 1000);
 
-    int motorA_speed = 0;
-    int motorB_speed = 0;
+    int motorA_speed = motor_controller_latest_data->motorChA_speed;
+    int motorB_speed = motor_controller_latest_data->motorChB_speed;
 
     int vehicle_speed = (motorA_speed + motorB_speed) / 2;
 
@@ -100,9 +101,9 @@ static bool AEB_IsEmergencyBrakingRequired (const ToFData_t *tof_latest_data)
     return false;
 }
 
-bool AEB_Update_State (const ToFData_t *tof_latest_data)
+bool AEB_Update_State (const ToFData_t *tof_latest_data, const MotorControllerData_t *motor_controller_latest_data)
 {
-    aeb_state = AEB_IsEmergencyBrakingRequired(tof_latest_data);
+    aeb_state = AEB_IsEmergencyBrakingRequired(tof_latest_data, motor_controller_latest_data);
     return true;
 }
 

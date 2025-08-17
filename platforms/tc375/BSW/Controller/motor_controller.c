@@ -1,181 +1,159 @@
 #include "motor_controller.h"
 
+#include "stm.h"
+
 #include "motor.h"
 
-static int g_motorChA_Speed = 0;
-static int g_motorChB_Speed = 0;
-static int g_motorChA_Direction = 1;
-static int g_motorChB_Direction = 1;
+#include "my_math.h"
 
-static void MotorController_SetMotorChA (int speed)
+// 상수 정의
+#define MOTOR_SPEED_MAX     100
+#define MOTOR_SPEED_MIN     -100
+#define MOTOR_SPEED_CENTER  0
+#define JOYSTICK_MAX        99
+#define JOYSTICK_MIN        0
+#define JOYSTICK_CENTER     50
+#define DEFAULT_DEADZONE    8
+
+// 모터 채널 정의
+typedef enum
 {
-    if (speed > 100)
-        speed = 100;
-    if (speed < -100)
-        speed = -100;
-    
-    g_motorChA_Speed = (speed < 0) ? -speed : speed;
-    g_motorChA_Direction = (speed >= 0) ? 1 : 0;
-    
-    if (speed == 0)
+    MotorChannel_ChA = 0, MotorChannel_ChB = 1
+} MotorChannel_t;
+
+// 내부 상태
+static MotorControllerData_t latest_data;
+static bool data_ready = false;
+
+// 출력 데이터 가져오기
+bool MotorController_GetLatestData (MotorControllerData_t *out)
+{
+    if (!data_ready)
+        return false;
+
+    *out = latest_data;
+    data_ready = false;
+    return true;
+}
+
+// 모터 채널별 속도 설정
+static void MotorController_SetMotor (MotorChannel_t channel, int speed)
+{
+    int abs_speed = my_abs(speed);
+    int direction = (speed >= 0) ? 1 : 0;
+
+    switch (channel)
     {
-        Motor_stopChA();
-    }
-    else
-    {
-        Motor_movChA_PWM(g_motorChA_Speed, g_motorChA_Direction);
+        case MotorChannel_ChA :
+            if (speed == 0)
+                Motor_stopChA();
+            else
+                Motor_movChA_PWM(abs_speed, direction);
+            break;
+
+        case MotorChannel_ChB :
+            if (speed == 0)
+                Motor_stopChB();
+            else
+                Motor_movChB_PWM(abs_speed, direction);
+            break;
+
+        default :
+            break;
     }
 }
 
-static void MotorController_SetMotorChB (int speed)
-{
-    if (speed > 100)
-        speed = 100;
-    if (speed < -100)
-        speed = -100;
-    
-    g_motorChB_Speed = (speed < 0) ? -speed : speed;
-    g_motorChB_Direction = (speed >= 0) ? 1 : 0;
-    
-    if (speed == 0)
-    {
-        Motor_stopChB();
-    }
-    else
-    {
-        Motor_movChB_PWM(g_motorChB_Speed, g_motorChB_Direction);
-    }
-}
-
+// 좌/우 모터 속도 설정
 static void MotorController_SetSpeed (int left_speed, int right_speed)
 {
-    if (left_speed > 100)
-        left_speed = 100;
-    if (left_speed < -100)
-        left_speed = -100;
-    if (right_speed > 100)
-        right_speed = 100;
-    if (right_speed < -100)
-        right_speed = -100;
-    
-    MotorController_SetMotorChA(right_speed);
-    MotorController_SetMotorChB(left_speed);
+    left_speed = clamp(left_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+    right_speed = clamp(right_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+
+    MotorController_SetMotor(MotorChannel_ChA, right_speed);
+    MotorController_SetMotor(MotorChannel_ChB, left_speed);
+
+    latest_data.output_time_us = getTimeUs();
+    latest_data.motorChA_speed = right_speed;
+    latest_data.motorChB_speed = left_speed;
+    data_ready = true;
 }
 
-static int MotorController_MapJoystickValue (int value)
+// 조이스틱 값 매핑 (데드존 포함)
+static int MotorController_MapJoystickValue (int value, int deadzone)
 {
-    if (value < 0)
-        value = 0;
-    if (value > 99)
-        value = 99;
-    
-    return (value * 200 / 99) - 100;
-}
+    value = clamp(value, JOYSTICK_MIN, JOYSTICK_MAX);
+    int offset = value - JOYSTICK_CENTER;
 
-static int MotorController_MapJoystickValueWithDeadzone (int value, int deadzone)
-{
-    if (value < 0)
-        value = 0;
-    if (value > 99)
-        value = 99;
-    
-    int center = 49;
-    int offset = value - center;
-    
-    if (offset > -deadzone && offset < deadzone)
+    if (my_abs(offset) < deadzone)
         return 0;
-    
-    if (offset > 0)
-        offset = offset - deadzone;
-    else
-        offset = offset + deadzone;
-    
-    int max_offset = center - deadzone;
+
+    offset += (offset > 0) ? -deadzone : deadzone;
+
+    int max_offset = JOYSTICK_CENTER - deadzone;
     if (max_offset <= 0)
         max_offset = 1;
-    
+
     return (offset * 100) / max_offset;
 }
 
+// 조이스틱 입력 처리
 bool MotorController_ProcessJoystickInput (int x, int y)
 {
-    if (x < 0 || x >= 100 || y < 0 || y >= 100)
-    {
+    if (x < JOYSTICK_MIN || x > JOYSTICK_MAX || y < JOYSTICK_MIN || y > JOYSTICK_MAX)
         return false;
-    }
-    
-    int x_speed = MotorController_MapJoystickValueWithDeadzone(x, 8);
-    int y_speed = MotorController_MapJoystickValue(y);
-    
-    x_speed = (x_speed * 60) / 100;
-    
+
+    int x_speed = MotorController_MapJoystickValue(x, DEFAULT_DEADZONE);
+    int y_speed = MotorController_MapJoystickValue(y, 0); // Y축은 데드존 없음
+
+    x_speed = (x_speed * 60) / 100; // X축 영향 축소
+
     int left_speed = y_speed + x_speed;
     int right_speed = y_speed - x_speed;
-    
+
     MotorController_SetSpeed(left_speed, right_speed);
     return true;
 }
 
+// WASD 입력 처리
 bool MotorController_ProcessWASDInput (char key)
 {
+    static int base_speed = MOTOR_SPEED_CENTER;  // 기본 전/후진 속도
+    int turn_offset = 0;  // 좌/우 회전 속도 차이
+
     switch (key)
     {
         case 'w' :
         case 'W' :
-            MotorController_SetSpeed(100, 100);     // Move forward: both motors same speed
-            return true;
-
+            base_speed = MOTOR_SPEED_MAX;
+            break;  // 전진
         case 's' :
         case 'S' :
-            MotorController_SetSpeed(-100, -100);   // Move backward: both motors reverse
-            return true;
-
+            base_speed = MOTOR_SPEED_MIN;
+            break;  // 후진
         case 'a' :
         case 'A' :
-            // Turn left while maintaining current direction
-            if (g_motorChA_Direction > 0 && g_motorChB_Direction > 0)
-            {
-                // Turn left during forward movement
-                MotorController_SetSpeed(50, 100);
-            }
-            else if (g_motorChA_Direction < 0 && g_motorChB_Direction < 0)
-            {
-                // Turn left during backward movement (steering is reversed when backing up)
-                MotorController_SetSpeed(-100, -50);
-            }
-            else
-            {
-                // Pivot turn left when stationary
-                MotorController_SetSpeed(-50, 50);
-            }
-            return true;
-
+            turn_offset = MOTOR_SPEED_MAX / 2;
+            break; // 좌회전
         case 'd' :
         case 'D' :
-            // Turn right while maintaining current direction
-            if (g_motorChA_Direction > 0 && g_motorChB_Direction > 0)
-            {
-                // Turn right during forward movement
-                MotorController_SetSpeed(100, 50);
-            }
-            else if (g_motorChA_Direction < 0 && g_motorChB_Direction < 0)
-            {
-                // Turn right during backward movement (steering is reversed when backing up)
-                MotorController_SetSpeed(-50, -100);
-            }
-            else
-            {
-                // Pivot turn right when stationary
-                MotorController_SetSpeed(50, -50);
-            }
-            return true;
-
+            turn_offset = MOTOR_SPEED_MIN / 2;
+            break; // 우회전
         case 'x' :
         case 'X' :
-            MotorController_SetSpeed(0, 0);         // Stop: both motors stop
-            return true;
-
+            base_speed = MOTOR_SPEED_CENTER;
+            break; // 정지
         default :
-            return false;    // Invalid command
+            return false; // 유효하지 않은 키
     }
+
+    // 방향에 따라 실제 좌/우 모터 속도 계산
+    int left_speed = base_speed - turn_offset;
+    int right_speed = base_speed + turn_offset;
+
+    // 속도 범위 클램핑
+    left_speed = clamp(left_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+    right_speed = clamp(right_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+
+    MotorController_SetSpeed(left_speed, right_speed);
+    return true;
 }

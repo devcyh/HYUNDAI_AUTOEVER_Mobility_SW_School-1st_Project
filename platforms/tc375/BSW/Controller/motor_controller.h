@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 
+#include "motor_controller_types.h"
+
+bool MotorController_GetLatestData (MotorControllerData_t *out);
 bool MotorController_ProcessJoystickInput (int x, int y);
 bool MotorController_ProcessWASDInput (char key);
 

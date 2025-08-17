@@ -20,6 +20,7 @@ void run_ccu (void)
     static BluetoothData_t bluetooth_latest_data;
     static ToFData_t tof_latest_data;
     static UltrasonicData_t ult_latest_data[ULTRASONIC_COUNT];
+    static MotorControllerData_t motor_controller_latest_data;
 
     static int pre_motor_x = MOTOR_STOP;
     static int pre_motor_y = MOTOR_STOP;
@@ -74,7 +75,7 @@ void run_ccu (void)
 //            my_printf("ToF/%lf ", tof_latest_data.distance_m);
 
             /* Update AEB state */
-            AEB_Update_State(&tof_latest_data);
+            AEB_Update_State(&tof_latest_data, &motor_controller_latest_data);
 
             /* Get AEB result */
             /* Command priority: 3 */
@@ -106,8 +107,7 @@ void run_ccu (void)
 //            my_printf("%d %d\n", motor_x, motor_y);
             if (MotorController_ProcessJoystickInput(motor_x, motor_y)) // Controll motor
             {
-                pre_motor_x = motor_x;
-                pre_motor_y = motor_y;
+                MotorController_GetLatestData(&motor_controller_latest_data);
             }
         }
 
