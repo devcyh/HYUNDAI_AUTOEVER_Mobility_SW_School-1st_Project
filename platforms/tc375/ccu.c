@@ -90,14 +90,6 @@ void run_ccu (void)
             Ultrasonic_GetLatestData(i, &ult_latest_data[i]);
         }
 
-        /* Print sensor data */
-//        my_printf("ToF/%lf ", tof_latest_data.distance_m);
-//        for (int i = 0; i < ULTRASONIC_COUNT; i++)
-//        {
-//            my_printf("Ult%d/%d ", i, ult_latest_data[i].distance_mm);
-//        }
-//        my_printf("\n");
-
         /* Check APS & Update APS state */
         if (APS_GetState() && APS_UpdateResult_Periodic(&tof_latest_data, ult_latest_data, CYCLE_INTERVAL_US))
         {
@@ -107,18 +99,27 @@ void run_ccu (void)
         }
 
         /* Check motor control input */
-//        my_printf("Motor: %d %d\n", motor_x, motor_y);
         if (!(motor_x == pre_motor_x && motor_y == pre_motor_y))
         {
 //            my_printf("Motor input: %d %d\n", motor_x, motor_y);
             if (MotorController_ProcessJoystickInput(motor_x, motor_y)) // Controll motor
             {
                 MotorController_GetLatestData(&motor_controller_latest_data);
+                pre_motor_x = motor_x;
+                pre_motor_y = motor_y;
             }
         }
 
         /* Update emergency alert state */
         EmerAlert_Update_Periodic(emerAlert_cycle_ms);
         pre_emerAlert_cycle_ms = emerAlert_cycle_ms;
+
+        /* Print sensor data */
+//        my_printf("ToF/%lf ", tof_latest_data.distance_m);
+//        for (int i = 0; i < ULTRASONIC_COUNT; i++)
+//        {
+//            my_printf("Ult%d/%d ", i, ult_latest_data[i].distance_mm);
+//        }
+//        my_printf("\n");
     }
 }
