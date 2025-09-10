@@ -13,33 +13,39 @@ void Motor_Init (void)
     GtmAtomPwmA_SetDutyCycle(0); // Set duty 0
     GtmAtomPwmB_SetDutyCycle(0); // Set duty 0
 
-    GPIO_SetMotorChADir(true); // Set to forward
-    GPIO_SetMotorChBDir(true); // Set to forward
+    GPIO_SetMotorDir(1, true); // Set to forward
+    GPIO_SetMotorDir(2, true);
 
-    GPIO_SetMotorChABrake(true); // Activate the brakes
-    GPIO_SetMotorChBBrake(true); // Activate the brakes
+    GPIO_SetMotorBrake(1, true); // Activate the brakes
+    GPIO_SetMotorBrake(2, true);
 }
 
-void Motor_movChA_PWM (uint32_t duty, bool dir)
+void Motor_SetChA (uint32_t duty, bool dir)
 {
     GtmAtomPwmA_SetDutyCycle(duty * 10); // Max input == 100 * 10 (100% PWM duty)
-    GPIO_SetMotorChADir(dir); // true(1): 정방향, false(0): 역방향
-    GPIO_SetMotorChABrake(false); // 모터 Brake 해제 (true: 정지, false: PWM-A에 따라 동작)
+    GPIO_SetMotorDir(1, dir); // true(1): 정방향, false(0): 역방향
+
+    if (duty > 0)
+    {
+        GPIO_SetMotorBrake(1, false); // 모터 Brake 비활성화 (true: 정지, false: PWM-A에 따라 동작)
+    }
+    else
+    {
+        GPIO_SetMotorBrake(1, true); // 모터 Brake 활성화
+    }
 }
 
-void Motor_stopChA (void)
-{
-    GPIO_SetMotorChABrake(true); // 모터 Brake 활성화
-}
-
-void Motor_movChB_PWM (uint32_t duty, bool dir)
+void Motor_SetChB (uint32_t duty, bool dir)
 {
     GtmAtomPwmB_SetDutyCycle(duty * 10);
-    GPIO_SetMotorChBDir(dir);
-    GPIO_SetMotorChBBrake(false);
-}
+    GPIO_SetMotorDir(2, dir);
 
-void Motor_stopChB (void)
-{
-    GPIO_SetMotorChBBrake(true);
+    if (duty > 0)
+    {
+        GPIO_SetMotorBrake(2, false);
+    }
+    else
+    {
+        GPIO_SetMotorBrake(2, true);
+    }
 }

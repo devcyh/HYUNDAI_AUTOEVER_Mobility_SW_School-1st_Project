@@ -36,41 +36,25 @@ bool MotorController_GetLatestData (MotorControllerData_t *out)
     return true;
 }
 
-// 모터 채널별 속도 설정
-static void MotorController_SetMotor (MotorChannel_t channel, int speed)
-{
-    int abs_speed = my_abs(speed);
-    int direction = (speed >= 0) ? 1 : 0;
-
-    switch (channel)
-    {
-        case MotorChannel_ChA :
-            if (speed == 0)
-                Motor_stopChA();
-            else
-                Motor_movChA_PWM(abs_speed, direction);
-            break;
-
-        case MotorChannel_ChB :
-            if (speed == 0)
-                Motor_stopChB();
-            else
-                Motor_movChB_PWM(abs_speed, direction);
-            break;
-
-        default :
-            break;
-    }
-}
-
 // 좌/우 모터 속도 설정
 static void MotorController_SetSpeed (int left_speed, int right_speed)
 {
-    left_speed = my_clamp(left_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
-    right_speed = my_clamp(right_speed, MOTOR_SPEED_MIN, MOTOR_SPEED_MAX);
+    bool left_direction = (left_speed >= 0) ? 1 : 0;
+    left_speed = my_abs(left_speed);
+    if (left_speed > MOTOR_SPEED_MAX)
+    {
+        left_speed = MOTOR_SPEED_MAX;
+    }
 
-    MotorController_SetMotor(MotorChannel_ChA, right_speed);
-    MotorController_SetMotor(MotorChannel_ChB, left_speed);
+    bool right_direction = (right_speed >= 0) ? 1 : 0;
+    right_speed = my_abs(right_speed);
+    if (right_speed > MOTOR_SPEED_MAX)
+    {
+        right_speed = MOTOR_SPEED_MAX;
+    }
+
+    Motor_SetChA(right_speed, right_direction);
+    Motor_SetChB(left_speed, left_direction);
 
     latest_data.output_time_us = getTimeUs();
     latest_data.motorChA_speed = right_speed;

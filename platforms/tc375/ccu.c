@@ -72,26 +72,31 @@ void run_ccu (void)
         /* Get ToF data */
         if (ToF_GetLatestData(&tof_latest_data))
         {
-//            my_printf("ToF/%lf ", tof_latest_data.distance_m);
-
             /* Update AEB state */
             AEB_UpdateState(&tof_latest_data, &motor_controller_latest_data);
-
-            /* Get AEB result */
-            /* Command priority: 3 */
-            if (AEB_GetState())
-            {
-//                APS_Set_State(false); // APS off
-            }
-            AEB_GetResult(&motor_x, &motor_y, &emerAlert_cycle_ms);
         }
+
+        /* Get AEB result */
+        /* Command priority: 3 */
+        if (AEB_GetState())
+        {
+//                APS_Set_State(false); // APS off
+        }
+        AEB_GetResult(&motor_x, &motor_y, &emerAlert_cycle_ms);
 
         /* Get ultrasonic data */
         for (int i = 0; i < ULTRASONIC_COUNT; i++)
         {
             Ultrasonic_GetLatestData(i, &ult_latest_data[i]);
-//            my_printf("Ult%d/%d ", ult_latest_data[i].distance_mm);
         }
+
+        /* Print sensor data */
+//        my_printf("ToF/%lf ", tof_latest_data.distance_m);
+//        for (int i = 0; i < ULTRASONIC_COUNT; i++)
+//        {
+//            my_printf("Ult%d/%d ", i, ult_latest_data[i].distance_mm);
+//        }
+//        my_printf("\n");
 
         /* Check APS & Update APS state */
         if (APS_GetState() && APS_UpdateResult_Periodic(&tof_latest_data, ult_latest_data, CYCLE_INTERVAL_US))
@@ -102,9 +107,10 @@ void run_ccu (void)
         }
 
         /* Check motor control input */
+//        my_printf("Motor: %d %d\n", motor_x, motor_y);
         if (!(motor_x == pre_motor_x && motor_y == pre_motor_y))
         {
-//            my_printf("%d %d\n", motor_x, motor_y);
+//            my_printf("Motor input: %d %d\n", motor_x, motor_y);
             if (MotorController_ProcessJoystickInput(motor_x, motor_y)) // Controll motor
             {
                 MotorController_GetLatestData(&motor_controller_latest_data);

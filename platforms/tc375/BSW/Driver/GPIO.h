@@ -15,10 +15,8 @@ void GPIO_ToggleLed (int led_num);
 
 /* For motor */
 void GPIO_InitMotor (void);
-void GPIO_SetMotorChADir (bool dir);
-void GPIO_SetMotorChABrake (bool state);
-void GPIO_SetMotorChBDir (bool dir);
-void GPIO_SetMotorChBBrake (bool state);
+void GPIO_SetMotorDir (int channel, bool dir);
+void GPIO_SetMotorBrake (int channel, bool state);
 
 /* For ultrasonic */
 void GPIO_InitUltTrig (void);

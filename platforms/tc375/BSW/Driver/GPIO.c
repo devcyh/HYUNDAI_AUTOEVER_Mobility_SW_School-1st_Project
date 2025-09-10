@@ -63,24 +63,30 @@ void GPIO_InitMotor (void)
     MODULE_P02.IOCR4.B.PC6 = 0x10;  // PWM B Break
 }
 
-void GPIO_SetMotorChADir (bool dir)
+void GPIO_SetMotorDir (int channel, bool dir)
 {
-    MODULE_P10.OUT.B.P1 = dir;
+    switch (channel)
+    {
+        case 1 : // chA
+            MODULE_P10.OUT.B.P1 = dir;
+            break;
+        case 2 : // chB
+            MODULE_P10.OUT.B.P2 = dir;
+            break;
+    }
 }
 
-void GPIO_SetMotorChABrake (bool state)
+void GPIO_SetMotorBrake (int channel, bool state)
 {
-    MODULE_P02.OUT.B.P7 = state;
-}
-
-void GPIO_SetMotorChBDir (bool dir)
-{
-    MODULE_P10.OUT.B.P2 = dir;
-}
-
-void GPIO_SetMotorChBBrake (bool state)
-{
-    MODULE_P02.OUT.B.P6 = state;
+    switch (channel)
+    {
+        case 1 : // chA
+            MODULE_P02.OUT.B.P7 = state;
+            break;
+        case 2 : // chB
+            MODULE_P02.OUT.B.P6 = state;
+            break;
+    }
 }
 
 /* For ultrasonic */
