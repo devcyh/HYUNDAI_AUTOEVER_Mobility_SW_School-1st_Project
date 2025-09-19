@@ -10,7 +10,8 @@ typedef enum
 
 typedef struct
 {
-    int32_t distance_mm;
+    int32_t dist_raw_mm;
+    int32_t dist_filt_mm;
     uint64_t received_time_us;
 } UltrasonicData_t;
 

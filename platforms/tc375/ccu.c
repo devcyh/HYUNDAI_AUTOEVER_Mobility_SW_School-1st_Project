@@ -41,9 +41,6 @@ void run_ccu (void)
         /* Get bluetooth data */
         if (Bluetooth_GetLatestData(&bluetooth_latest_data))
         {
-//            my_printf("user cmd: %d %d %d %llu\n", bluetooth_latest_data.type, bluetooth_latest_data.param1,
-//                    bluetooth_latest_data.param2, bluetooth_latest_data.received_time_us);
-
             /* Check user commands */
             /* Command priority: 2 (High value - higher priority) */
             switch (bluetooth_latest_data.type)
@@ -67,6 +64,9 @@ void run_ccu (void)
                 default :
                     break;
             }
+
+//            my_printf("User cmd: %d %d %d %llu\n", bluetooth_latest_data.type, bluetooth_latest_data.param1,
+//                    bluetooth_latest_data.param2, bluetooth_latest_data.received_time_us);
         }
 
         /* Get ToF data */
@@ -101,12 +101,13 @@ void run_ccu (void)
         /* Check motor control input */
         if (!(motor_x == pre_motor_x && motor_y == pre_motor_y))
         {
-//            my_printf("Motor input: %d %d\n", motor_x, motor_y);
             if (MotorController_ProcessJoystickInput(motor_x, motor_y)) // Controll motor
             {
                 MotorController_GetLatestData(&motor_controller_latest_data);
                 pre_motor_x = motor_x;
                 pre_motor_y = motor_y;
+
+//                my_printf("Motor: %d %d\n", motor_x, motor_y);
             }
         }
 
@@ -115,11 +116,12 @@ void run_ccu (void)
         pre_emerAlert_cycle_ms = emerAlert_cycle_ms;
 
         /* Print sensor data */
-//        my_printf("ToF/%lf ", tof_latest_data.distance_m);
+//        my_printf("ToF: %lf %d %llu\n", tof_latest_data.distance_m, tof_latest_data.distance_status,
+//                tof_latest_data.received_time_us);
 //        for (int i = 0; i < ULTRASONIC_COUNT; i++)
 //        {
-//            my_printf("Ult%d/%d ", i, ult_latest_data[i].distance_mm);
+//            my_printf("Ult%d: %d %d %llu\n", i, ult_latest_data[i].dist_raw_mm, ult_latest_data[i].dist_filt_mm,
+//                    ult_latest_data[i].received_time_us);
 //        }
-//        my_printf("\n");
     }
 }

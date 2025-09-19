@@ -6,10 +6,13 @@
 #include "stm.h"
 
 #include "eru_event_queue.h"
+#include "avg_filter.h"
 
+#define ULT_AVG_FILTER_SIZE 5
 #define CALCULATE_DISTANCE(fall_time, rise_time) (((int32_t)((fall_time) - (rise_time)) * 343) / 2000) // mm, Speed of sound : 0.343 mm/us
 
 static EruEventQueue rx_queues[ULTRASONIC_COUNT];
+static AverageFilter filters[ULTRASONIC_COUNT];
 static int max_events_per_call;
 
 static UltrasonicData_t latest_data[ULTRASONIC_COUNT];
@@ -20,7 +23,7 @@ bool Ultrasonic_Init (int buffer_size, int max_events)
     /* Initialize */
     for (int i = 0; i < ULTRASONIC_COUNT; ++i)
     {
-        if (!EruEventQueue_Init(&rx_queues[i], buffer_size))
+        if (!EruEventQueue_Init(&rx_queues[i], buffer_size) || !Filter_Init(&filters[i], ULT_AVG_FILTER_SIZE))
             return false;
     }
 
@@ -71,8 +74,10 @@ void Ultrasonic_ProcessQueue (void)
                 if (last_rise_time[ult_idx] > 0) // Rising 기록이 있을 때만 계산
                 {
                     int32_t dist_raw = CALCULATE_DISTANCE(evt.timestamp_us, last_rise_time[ult_idx]);
+                    int32_t dist_filt = Filter_Update(&filters[ult_idx], dist_raw);
 
-                    latest_data[ult_idx].distance_mm = dist_raw;
+                    latest_data[ult_idx].dist_raw_mm = dist_raw;
+                    latest_data[ult_idx].dist_filt_mm = dist_filt;
                     latest_data[ult_idx].received_time_us = last_rise_time[ult_idx];
                     data_ready[ult_idx] = true;
                 }

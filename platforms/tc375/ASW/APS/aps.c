@@ -336,7 +336,7 @@ bool APS_UpdateResult_Periodic (const ToFData_t *tof_latest_data, const Ultrason
     sense_time[0] = tof_latest_data->received_time_us;
     for (int i = 0; i < ULTRASONIC_COUNT; i++)
     {
-        sense_dist[i + 1] = (int) ult_latest_data[i].distance_mm;
+        sense_dist[i + 1] = (int) ult_latest_data[i].dist_filt_mm;
         sense_time[i + 1] = ult_latest_data[i].received_time_us;
     }
 
